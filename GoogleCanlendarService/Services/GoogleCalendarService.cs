@@ -16,6 +16,11 @@ namespace GoogleCanlendarService.Services
             service = GetCalendarService();
         }
 
+        public CalendarService GetService()
+        {
+            return service;
+        }
+
         public CalendarService GetCalendarService()
         {
             // Load the credentials from the service account key file
@@ -38,7 +43,6 @@ namespace GoogleCanlendarService.Services
         /// <returns>A list of events from the specified calendar.</returns>
         public IList<Event> GetEvents(string calendarId = "primary")
         {
-
             EventsResource.ListRequest request = service.Events.List(calendarId);
             IList<Event> listEvents = request.Execute().Items;
 
@@ -52,7 +56,6 @@ namespace GoogleCanlendarService.Services
         /// <returns>A list of upcoming events from the specified calendar.</returns>
         public IList<Event> GetUpcomingEvents(string calendarId = "primary")
         {
-
             EventsResource.ListRequest request = service.Events.List(calendarId);
             request.TimeMinDateTimeOffset = DateTime.Now;
             IList<Event> listEvents = request.Execute().Items;
@@ -74,6 +77,31 @@ namespace GoogleCanlendarService.Services
             return createdEvent;
         }
 
+        /// <summary>
+        /// Update event into the calendar
+        /// </summary>
+        /// <param name="newEvent">The event to create</param>
+        /// <param name="calendarId">Calendar identifier. Default is "primary"</param>
+        /// <returns>Updated event</returns>
+        public Event UpdateEvent(Event updateEvent, string calendarId = "primary")
+        {
+            // Insert the event into the calendar
+            EventsResource.UpdateRequest request = service.Events.Update(updateEvent, calendarId, updateEvent.Id);
+            Event createdEvent = request.Execute();
+            return createdEvent;
+        }
+
+        /// <summary>
+        /// Delete specific event by Id
+        /// </summary>
+        /// <param name="id">The event ID to delete</param>
+        /// <param name="calendarId">Calendar identifier. Default is "primary"</param>
+        /// <returns>Creted event</returns>
+        public void DeleteEventById(string id, string calendarId = "primary")
+        {
+            service.Events.Delete(calendarId, id).Execute();
+        }
+
         public void DeleteAllEventByCalendarId(string calendarId = "primary")
         {
             IList<Event> events = GetEvents();
@@ -81,6 +109,21 @@ namespace GoogleCanlendarService.Services
             {
                 service.Events.Delete(calendarId, item.Id).Execute();
             }
+        }
+
+        public Event GetEventById(string id, string calendarId = "primary")
+        {
+            Event eventObj = null;
+            try
+            {
+                var request = service.Events.Get(calendarId, id);
+                eventObj = request.Execute();
+            }
+            catch (Exception)
+            {
+                //Event not found
+            }
+            return eventObj;
         }
     }
 }

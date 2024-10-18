@@ -2,7 +2,7 @@
 
 namespace GoogleCanlendarService.Models
 {
-    class EventReminderModel : EventReminder
+    internal class EventReminderModel : EventReminder
     {
         public int Id { get; set; }
         public int RemindersDataId { get; set; }

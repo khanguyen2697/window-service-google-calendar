@@ -2,7 +2,7 @@
 
 namespace GoogleCanlendarService.Models
 {
-    class EventAttendeeModel : EventAttendee
+    internal class EventAttendeeModel : EventAttendee
     {
         public string EventId { get; set; }
 

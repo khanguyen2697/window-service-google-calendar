@@ -11,7 +11,7 @@ namespace GoogleCanlendarService.Utils
             string database = ConfigurationManager.AppSettings["DbName"];
             string user = ConfigurationManager.AppSettings["DbUser"];
             string password = ConfigurationManager.AppSettings["DbPassword"];
-            string connectionString = $"Server={server};Database={database};User Id={user};Password={password};";
+            string connectionString = $"Server={server};Database={database};User Id={user};Password={password};MultipleActiveResultSets=true;";
             var connection = new SqlConnection(connectionString);
             return connection;
         }

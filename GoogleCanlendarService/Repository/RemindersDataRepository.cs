@@ -1,5 +1,4 @@
 ﻿using GoogleCanlendarService.Models;
-using GoogleCanlendarService.Repository;
 using GoogleCanlendarService.Utils;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -17,7 +16,9 @@ namespace GoogleCanlendarService.Repository
         {
             string StrQuery = @"
                 INSERT INTO 
-                    RemindersData (UseDefault) OUTPUT INSERTED.Id
+                    RemindersData (UseDefault)
+                OUTPUT
+                    INSERTED.Id
                 VALUES 
                     (@UseDefault);";
 
@@ -35,13 +36,36 @@ namespace GoogleCanlendarService.Repository
             EventReminderRepository eventReminderRepository = new EventReminderRepository(this.Connection, this.Transaction);
 
             // Insert each EventReminder into EventReminder table
-            foreach (var eventReminder in remindersData.OverridesModel)
+            if (remindersData.OverridesModel != null)
             {
-                eventReminder.RemindersDataId = remindersDataId;
-                eventReminderRepository.Insert(eventReminder);
+                foreach (var eventReminder in remindersData.OverridesModel)
+                {
+                    eventReminder.RemindersDataId = remindersDataId;
+                    eventReminderRepository.Insert(eventReminder);
+                }
             }
 
             return remindersDataId;
+        }
+
+        public RemindersDataModel SelectById(int? id)
+        {
+            string selectRemindersDataQuery = @"
+                SELECT
+                    rd.Id, rd.UseDefault, er.Method, er.Minutes, er.ETag
+                FROM
+                    RemindersData rd
+                LEFT JOIN
+                    EventReminder er
+                ON
+                    rd.Id = er.RemindersDataId
+                WHERE
+                    rd.Id = @Id";
+            RemindersDataModel remindersData = new RemindersDataModel();
+            remindersData.UseDefault = true;
+            //TODO implement
+            return remindersData;
+            
         }
 
         public List<RemindersDataModel> SelectAll()
@@ -95,7 +119,6 @@ namespace GoogleCanlendarService.Repository
                     }
                 }
             }
-
             return remindersDataList;
         }
     }

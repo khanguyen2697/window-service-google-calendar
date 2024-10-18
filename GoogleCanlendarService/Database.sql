@@ -4,14 +4,14 @@ GO
 USE GoogleCalendar;
 
 CREATE TABLE OrganizerData (
-    Id VARCHAR(255) NOT NULL PRIMARY KEY,
+    Id NVARCHAR(100) NOT NULL PRIMARY KEY,
     DisplayName NVARCHAR(255),
     Email NVARCHAR(255) NOT NULL,
     IsOrganizer BIT DEFAULT 0
 );
 
 CREATE TABLE CreatorData (
-    Id VARCHAR(255) NOT NULL PRIMARY KEY,
+    Id NVARCHAR(100) NOT NULL PRIMARY KEY,
     DisplayName NVARCHAR(255),
     Email NVARCHAR(255)NOT NULL,
     IsCreator BIT DEFAULT 0
@@ -31,49 +31,63 @@ CREATE TABLE EventReminder (
     CONSTRAINT FK_RemindersData_EventReminder FOREIGN KEY (RemindersDataId) REFERENCES RemindersData(Id)
 );
 
+CREATE TABLE EventDateTime (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    Date NVARCHAR(255),
+    DateTimeRaw NVARCHAR(255),
+    TimeZone NVARCHAR(100),
+    ETag NVARCHAR(255)
+);
+
 CREATE TABLE Event (
-    Id VARCHAR(255) NOT NULL PRIMARY KEY,
+    Id NVARCHAR(100) NOT NULL PRIMARY KEY,
+    CalendarId NVARCHAR(100) NOT NULL,
+    ColorId NVARCHAR(50) NULL,
+    CreatorId NVARCHAR(100) NULL,
+    OrganizerId NVARCHAR(100) NULL,
+    RecurringEventId NVARCHAR(100) NULL,
+    ReminderId INT NULL,
+    StartId INT NOT NULL,
+    EndId INT NOT NULL,
+    OriginalStartTimeId INT NULL,
+    Sequence INT NULL,
     AnyoneCanAddSelf BIT NULL,
     AttendeesOmitted BIT NULL,
-    CreatedRaw VARCHAR(255) NULL,
-    ColorId VARCHAR(50) NULL,
-    CreatedDateTimeOffset DATETIMEOFFSET NULL,
-    CreatorId VARCHAR(255) NULL,
+    CreatedRaw NVARCHAR(255) NULL,
     EDescription TEXT NULL,
-    EndDate DATETIME2 NOT NULL,
     EndTimeUnspecified BIT NULL,
-    ETag VARCHAR(255) NULL,
-    EventType VARCHAR(50) NULL,
+    ETag NVARCHAR(255) NULL,
+    EventType NVARCHAR(50) NULL,
     GuestsCanInviteOthers BIT NULL,
     GuestsCanModify BIT NULL,
     GuestsCanSeeOtherGuests BIT NULL,
-    HangoutLink VARCHAR(255) NULL,
-    HtmlLink VARCHAR(255) NULL,
-    ICalUID VARCHAR(255) NULL,
-    Location VARCHAR(255) NULL,
-    Kind VARCHAR(50) NULL,
+    HangoutLink NVARCHAR(255) NULL,
+    HtmlLink NVARCHAR(255) NULL,
+    ICalUID NVARCHAR(255) NULL,
+    Location NVARCHAR(255) NULL,
+    Kind NVARCHAR(50) NULL,
     Locked BIT NULL,
-    OrganizerId VARCHAR(255) NULL,
-	PrivateCopy BIT NULL,
-    OriginalStartTime DATETIME2 NULL,
-    RecurringEventId VARCHAR(50) NULL,
-    ReminderId INT NULL,
-    StartDate DATETIME2 NOT NULL,
-    EStatus VARCHAR(50) NULL,
+    PrivateCopy BIT NULL,
+    EStatus NVARCHAR(50) NULL,
     Summary TEXT NULL,
-	Transparency VARCHAR(50) NULL,
-    UpdatedRaw VARCHAR(255) NULL,
-	Visibility VARCHAR(50) NULL,
-	CONSTRAINT FK_Event_RemindersData FOREIGN KEY (ReminderId) REFERENCES RemindersData(Id),
-	CONSTRAINT FK_Event_CreatorData FOREIGN KEY (CreatorId) REFERENCES CreatorData(Id),
-	CONSTRAINT FK_Event_OrganizerData FOREIGN KEY (OrganizerId) REFERENCES OrganizerData(Id)
+    Transparency NVARCHAR(50) NULL,
+    UpdatedRaw NVARCHAR(255) NULL,
+    Visibility NVARCHAR(50) NULL,
+    GoogleCreated BIT DEFAULT 0,
+    Deleted BIT DEFAULT 0,
+    CONSTRAINT FK_Event_RemindersData FOREIGN KEY (ReminderId) REFERENCES RemindersData(Id),
+    CONSTRAINT FK_Event_CreatorData FOREIGN KEY (CreatorId) REFERENCES CreatorData(Id),
+    CONSTRAINT FK_Event_OrganizerData FOREIGN KEY (OrganizerId) REFERENCES OrganizerData(Id),
+    CONSTRAINT FK_Event_Start FOREIGN KEY (StartId) REFERENCES EventDateTime(Id),
+    CONSTRAINT FK_Event_End FOREIGN KEY (EndId) REFERENCES EventDateTime(Id),
+    CONSTRAINT FK_Event_Original FOREIGN KEY (OriginalStartTimeId) REFERENCES EventDateTime(Id),
 );
 
 CREATE TABLE EventAttendee (
-    Id VARCHAR(255) NOT NULL PRIMARY KEY,
-    EventId VARCHAR(255) NOT NULL,
+    Id NVARCHAR(100) NULL,
+    EventId NVARCHAR(100) NOT NULL,
+    Email NVARCHAR(255) NOT NULL,
     DisplayName NVARCHAR(255),
-    Email NVARCHAR(255) NULL,
     AdditionalGuests INT NULL DEFAULT 0,
     Comment NVARCHAR(MAX) NULL,
     Optional BIT NULL DEFAULT 0,
@@ -82,17 +96,30 @@ CREATE TABLE EventAttendee (
     ResponseStatus NVARCHAR(50) NULL,
     RepresentsCalendar BIT NULL DEFAULT 0,
     ETag NVARCHAR(255) NULL,
-	CONSTRAINT FK_EventAttendee_Event FOREIGN KEY (EventId) REFERENCES Event(Id),
+    PRIMARY KEY (EventId, Email),
+    CONSTRAINT FK_EventAttendee_Event FOREIGN KEY (EventId) REFERENCES Event(Id),
+);
+
+CREATE TABLE Recurrence (
+    EventId NVARCHAR(100) NOT NULL,
+    Content NVARCHAR(255) NULL,
+    CONSTRAINT FK_Recurrence_Event FOREIGN KEY (EventId) REFERENCES Event(Id),
 );
 
 CREATE TABLE EventAttachment (
-    FileId VARCHAR(255) NOT NULL,
-    EventId VARCHAR(255) NOT NULL,
+    FileId NVARCHAR(100) NOT NULL,
+    EventId NVARCHAR(100) NOT NULL,
     FileUrl NVARCHAR(MAX) NULL,
     IconLink NVARCHAR(MAX) NULL,
     MimeType NVARCHAR(100) NULL,
     Title NVARCHAR(255) NULL,
     ETag NVARCHAR(255) NULL,
     PRIMARY KEY (FileId, EventId),
-	CONSTRAINT FK_EventAttachment_Event FOREIGN KEY (EventId) REFERENCES Event(Id),
+    CONSTRAINT FK_EventAttachment_Event FOREIGN KEY (EventId) REFERENCES Event(Id),
+);
+
+CREATE TYPE UT_EventCheck AS TABLE
+(
+    Id NVARCHAR(100),
+    UpdatedRaw NVARCHAR(255)
 );

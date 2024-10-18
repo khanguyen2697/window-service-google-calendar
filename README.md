@@ -7,7 +7,7 @@ This project is a Windows Service that integrates with Google Calendar to get Ev
 2. Update `App.config` file to your credential
 3. Open CMD as Administrator
 4. Go to bin/Debug (bin/Release) folder
-5. `install GoogleCanlendarService.exe`
+5. `installutil GoogleCanlendarService.exe`
 
 ### Start window service
 `net start GoogleCalendarService`
@@ -18,3 +18,8 @@ This project is a Windows Service that integrates with Google Calendar to get Ev
 
 ### Log folder
 C:\Windows\System32\winevt\Logs
+
+### For dev
+To running project as Console Application
+1. Update Output type
+	`Properties`->`Application`->`Output type`-> `Console Application`

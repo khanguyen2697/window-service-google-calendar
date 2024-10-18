@@ -1,5 +1,7 @@
 ﻿using Google.Apis.Calendar.v3.Data;
 using GoogleCanlendarService.Data;
+using GoogleCanlendarService.Models;
+using GoogleCanlendarService.Repository;
 using GoogleCanlendarService.Services;
 using GoogleCanlendarService.Utils;
 using System;
@@ -7,6 +9,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Data.SqlClient;
 using System.Diagnostics;
+using System.Linq;
 using System.ServiceProcess;
 using System.Timers;
 
@@ -14,10 +17,9 @@ namespace GoogleCanlendarService
 {
     public partial class InsertEventService : ServiceBase
     {
-
-        Timer timer = new Timer();
         const string SERVICE_SOURCE = "GoogleCalendarServiceSource";
         const string SERVICE_LOG = "GoogleCalendarServiceLog";
+        Timer timer = new Timer();
 
         public InsertEventService()
         {
@@ -46,44 +48,192 @@ namespace GoogleCanlendarService
 
         private void OnElapsedTime(object source, ElapsedEventArgs e)
         {
-            InsertEventsFromGoogleCalendarToDB();
+            SyncEventBetweenGoogleCalendarAndDB();
         }
 
-        private void InsertEventsFromGoogleCalendarToDB()
+        private void SyncEventBetweenGoogleCalendarAndDB()
         {
             try
             {
                 GoogleCalendarService googleCalendarService = new GoogleCalendarService();
-                IList<Event> events = googleCalendarService.GetUpcomingEvents();
+                //Retrieve all upcomming event from Google
+                IList<Event> eventsFromGoogle = googleCalendarService.GetUpcomingEvents(GetCalendarId());
+                var eventsFromGoogleDic = eventsFromGoogle.ToDictionary(entity => entity.Id);
 
                 using (SqlConnection conn = DBConnection.GetConnection())
                 {
                     conn.Open();
                     EventRepository eventRepository = new EventRepository(conn);
-                    List<string> eventIdsFromDB = eventRepository.GetUpcomingEventIds();
-                    List<string> insertedIds = new List<string>();
+                    // Retrieve all events with changes from both sides (Database/Google)
+                    IList<EventModel> eventsDiff = eventRepository.GetAllUpcommingEventsDiffFromDB(eventsFromGoogle, GetCalendarId());
 
-                    foreach (var eventObj in events)
+                    // Handle create/update/delete event from both side
+                    foreach (var eventObj in eventsDiff)
                     {
-                        // Only insert if event do not exist in database
-                        if (!eventIdsFromDB.Contains(eventObj.Id))
+                        // Event exist on Google
+                        if (eventsFromGoogleDic.TryGetValue(eventObj.Id, out var eventFromGoogle))
                         {
-                            eventRepository.Insert(eventObj);
-                            insertedIds.Add(eventObj.Id);
-                        }
-                    }
+                            if (eventObj.UpdatedRaw == null)
+                            {
+                                // Event doesn't exist in Database -> New event from Google
+                                handleEventCreatedFromGoogle(conn, eventRepository, eventFromGoogle, GetCalendarId());
+                                continue;
+                            }
 
-                    if (insertedIds.Count > 0)
-                    {
-                        string insertedIdsString = string.Join(", ", insertedIds);
-                        eventLogInsertCalendarEvent.WriteEntry($"Insert new event with Id: {insertedIdsString}");
+                            DateTimeOffset googleUpdated = DateTimeOffset.Parse(eventFromGoogle.UpdatedRaw);
+                            DateTimeOffset dbUpdated = DateTimeOffset.Parse(eventObj.UpdatedRaw);
+
+                            // Event change from Database
+                            if (dbUpdated > googleUpdated)
+                            {
+                                if (eventObj.Deleted == true)
+                                {
+                                    // Event deleted from Database
+                                    handleEventDeletedFromDatabase(googleCalendarService, eventObj);
+                                }
+                                else
+                                {
+                                    // Event changed from Database
+                                    handleEventChangedFromDatabase(googleCalendarService, eventRepository, eventObj);
+                                }
+                            }
+                            else
+                            {
+                                // Event changed from Google
+                                handleEventChangedFromGoogle(eventRepository, conn, eventObj, eventFromGoogle);
+                            }
+                        }
+                        // Event doesn't exist on Google
+                        else
+                        {
+                            if (eventObj.GoogleCreated == true)
+                            {
+                                // Event deleted from Google
+                                handleEventDeletedFromGoogle(eventRepository, eventObj);
+                            }
+                            else
+                            {
+                                // Get event by Id included deleted event
+                                if (googleCalendarService.GetEventById(eventObj.Id, eventObj.CalendarId) != null)
+                                {
+                                    // Event deleted from Database
+                                    handleEventDeletedFromGoogle(eventRepository, eventObj);
+                                }
+                                else
+                                {
+                                    // Event created from Database
+                                    handleEventCreatedFromDatabase(googleCalendarService, eventRepository, eventObj);
+                                }
+                            }
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                eventLogInsertCalendarEvent.WriteEntry(ex.ToString(), EventLogEntryType.Error);
+                WriteLog(ex.ToString());
             }
+        }
+
+        private void handleEventCreatedFromGoogle(SqlConnection conn, EventRepository eventRepo, Event eventObj, string calendarId)
+        {
+            // Insert event to databse
+            eventRepo.Insert(eventObj, calendarId);
+            WriteLog($"Insert new event in database (Id: {eventObj.Id})");
+        }
+
+        private void handleEventChangedFromGoogle(EventRepository eventRepo, SqlConnection conn, EventModel eventModelOld, Event eventNew)
+        {
+            EventModel eventModelNew = new EventModel(eventNew, GetCalendarId());
+            EventDateTimeRepository eventDateTimeRepository = new EventDateTimeRepository(conn);
+            // Update Start
+            if (!eventModelNew.IsStartEqual(eventModelOld.StartEventDateTime))
+            {
+                eventModelNew.StartEventDateTime.Id = eventModelOld.StartEventDateTime.Id;
+                eventDateTimeRepository.Update(eventModelNew.StartEventDateTime);
+            }
+
+            // Update End
+            if (!eventModelNew.IsEndEqual(eventModelOld.EndEventDateTime))
+            {
+                eventModelNew.EndEventDateTime.Id = eventModelOld.EndEventDateTime.Id;
+                eventDateTimeRepository.Update(eventModelNew.EndEventDateTime);
+            }
+
+            // Update OriginalStartTime
+            if (!eventModelNew.IsOriginalStartTimeEqual(eventModelOld.OriginalStartTimeEventDateTime))
+            {
+                eventModelNew.OriginalStartTimeEventDateTime.Id = eventModelOld.OriginalStartTimeEventDateTime.Id;
+                eventDateTimeRepository.Update(eventModelNew.OriginalStartTimeEventDateTime);
+            }
+
+            // Update Attendees
+            if (!eventModelNew.IsAttendeesEqual(eventModelOld.AttendeesModel))
+            {
+                EventAttendeeRepository eventAttendeeRepository = new EventAttendeeRepository(conn);
+                if (eventModelOld.AttendeesModel?.Count() > 0)
+                {
+                    eventAttendeeRepository.DeleteByEventId(eventModelOld.Id);
+                }
+                if (eventModelNew.AttendeesModel?.Count() > 0)
+                {
+                    foreach (var item in eventModelNew.AttendeesModel)
+                    {
+                        item.EventId = eventModelNew.Id;
+                        eventAttendeeRepository.Insert(item);
+                    }
+                }
+            }
+
+            // Update Event
+            eventRepo.UpdateSimpleField(eventModelNew);
+            WriteLog($"Update event in database (Id: {eventModelNew.Id})");
+        }
+
+        private void handleEventDeletedFromGoogle(EventRepository eventRepo, Event eventObj)
+        {
+            // Delete event in databse
+            eventRepo.DeleteById(eventObj.Id);
+            WriteLog($"Delete event in database (Id: {eventObj.Id})");
+        }
+
+        private void handleEventCreatedFromDatabase(GoogleCalendarService service, EventRepository eventRepo, EventModel eventObj)
+        {
+            Event createdEvent = service.CreateEvent(eventObj.ToEvent(), eventObj.CalendarId);
+            eventRepo.UpdateEventAfterHandleOnGoogle(createdEvent);
+            WriteLog($"Create event on Google (Id: {createdEvent.Id})");
+        }
+
+        private void handleEventChangedFromDatabase(GoogleCalendarService service, EventRepository eventRepo, EventModel eventObj)
+        {
+            Event updatedEvent = service.UpdateEvent(eventObj.ToEvent(), eventObj.CalendarId);
+            eventRepo.UpdateEventAfterHandleOnGoogle(updatedEvent);
+            WriteLog($"Update event on Google (Id: {updatedEvent.Id})");
+        }
+
+        private void handleEventDeletedFromDatabase(GoogleCalendarService service, EventModel eventToDelete)
+        {
+            service.DeleteEventById(eventToDelete.Id, eventToDelete.CalendarId);
+            WriteLog($"Delete event on Google (Id: {eventToDelete.Id})");
+        }
+        private void WriteLog(string content)
+        {
+            //CommonUtils.WriteLog(content);
+            //Console.WriteLine(content);
+            eventLogInsertCalendarEvent.WriteEntry(content);
+        }
+
+        private string GetCalendarId()
+        {
+            return ConfigurationManager.AppSettings["GoogleCalendarId"];
+        }
+
+        /// <summary>
+        /// This function is for running on console application
+        /// </summary>
+        public void Start(string[] args = null)
+        {
+            OnStart(args);
         }
     }
 }

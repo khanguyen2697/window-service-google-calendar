@@ -2,7 +2,7 @@
 
 namespace GoogleCanlendarService.Models
 {
-    class OrganizerDataModel : OrganizerData
+    internal class OrganizerDataModel : OrganizerData
     {
         public OrganizerDataModel() { }
 

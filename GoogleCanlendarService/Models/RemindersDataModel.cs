@@ -3,7 +3,7 @@ using static Google.Apis.Calendar.v3.Data.Event;
 
 namespace GoogleCanlendarService.Models
 {
-    class RemindersDataModel : RemindersData
+    internal class RemindersDataModel : RemindersData
     {
         public int Id { get; set; }
         public IList<EventReminderModel> OverridesModel { get; set; }
@@ -13,12 +13,15 @@ namespace GoogleCanlendarService.Models
         public RemindersDataModel(RemindersData remindersData)
         {
             this.UseDefault = remindersData.UseDefault;
-            this.OverridesModel = new List<EventReminderModel>();
             EventReminderModel eventReminderModel;
-            foreach (var item in remindersData.Overrides)
+            if (remindersData.Overrides != null)
             {
-                eventReminderModel = new EventReminderModel(item);
-                this.OverridesModel.Add(eventReminderModel);
+                this.OverridesModel = new List<EventReminderModel>();
+                foreach (var item in remindersData.Overrides)
+                {
+                    eventReminderModel = new EventReminderModel(item);
+                    this.OverridesModel.Add(eventReminderModel);
+                }
             }
         }
     }

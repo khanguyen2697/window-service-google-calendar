@@ -18,8 +18,8 @@ namespace GoogleCanlendarService.Data
                 @"INSERT INTO EventAttendee (
                     Id,
                     EventId,
-					DisplayName,
 					Email,
+					DisplayName,
 					AdditionalGuests,
 					Comment,
 					Optional,
@@ -31,8 +31,8 @@ namespace GoogleCanlendarService.Data
                 ) VALUES (
 				    @Id,
 				    @EventId,
-				    @DisplayName,
 				    @Email,
+				    @DisplayName,
 				    @AdditionalGuests,
 				    @Comment,
 				    @Optional,
@@ -46,17 +46,17 @@ namespace GoogleCanlendarService.Data
                 ? new SqlCommand(StrQuery, this.Connection)
                 : new SqlCommand(StrQuery, this.Connection, this.Transaction))
             {
-                cmd.Parameters.AddWithValue("@Id", eventAttendee.Id);
+                cmd.Parameters.AddWithValue("@Id", DBUtils.GetDBValue(eventAttendee.Id));
                 cmd.Parameters.AddWithValue("@EventId", eventAttendee.EventId);
-                cmd.Parameters.AddWithValue("@DisplayName", DBUtils.GetDBValue(eventAttendee.DisplayName));
                 cmd.Parameters.AddWithValue("@Email", DBUtils.GetDBValue(eventAttendee.Email));
-                cmd.Parameters.AddWithValue("@AdditionalGuests", eventAttendee.AdditionalGuests ?? 0);
+                cmd.Parameters.AddWithValue("@DisplayName", DBUtils.GetDBValue(eventAttendee.DisplayName));
+                cmd.Parameters.AddWithValue("@AdditionalGuests", DBUtils.GetDBValue(eventAttendee.AdditionalGuests));
                 cmd.Parameters.AddWithValue("@Comment", DBUtils.GetDBValue(eventAttendee.Comment));
-                cmd.Parameters.AddWithValue("@Optional", eventAttendee.Optional ?? false);
-                cmd.Parameters.AddWithValue("@Organizer", eventAttendee.Organizer ?? false);
-                cmd.Parameters.AddWithValue("@Resource", eventAttendee.Resource ?? false);
+                cmd.Parameters.AddWithValue("@Optional", DBUtils.GetDBValue(eventAttendee.Optional));
+                cmd.Parameters.AddWithValue("@Organizer", DBUtils.GetDBValue(eventAttendee.Organizer));
+                cmd.Parameters.AddWithValue("@Resource", DBUtils.GetDBValue(eventAttendee.Resource));
                 cmd.Parameters.AddWithValue("@ResponseStatus", DBUtils.GetDBValue(eventAttendee.ResponseStatus));
-                cmd.Parameters.AddWithValue("@RepresentsCalendar", eventAttendee.Self ?? false);
+                cmd.Parameters.AddWithValue("@RepresentsCalendar", DBUtils.GetDBValue(eventAttendee.Self));
                 cmd.Parameters.AddWithValue("@ETag", DBUtils.GetDBValue(eventAttendee.ETag));
 
                 cmd.ExecuteNonQuery();
@@ -67,7 +67,18 @@ namespace GoogleCanlendarService.Data
         {
             string StrQuery = @"
                         SELECT
-                            Id, EventId, DisplayName, Email, AdditionalGuests, Comment, Optional, Organizer, Resource, ResponseStatus, RepresentsCalendar, ETag
+                            Id,
+                            EventId,
+                            DisplayName,
+                            Email,
+                            AdditionalGuests,
+                            Comment,
+                            Optional,
+                            Organizer,
+                            Resource,
+                            ResponseStatus,
+                            RepresentsCalendar,
+                            ETag
                         FROM
                             EventAttendee
                         WHERE
@@ -104,6 +115,25 @@ namespace GoogleCanlendarService.Data
             }
 
             return eventAttendees;
+        }
+
+        public int DeleteByEventId(string eventId)
+        {
+            string StrQuery = @"
+                DELETE FROM
+                    EventAttendee
+                WHERE
+                    EventId = @EventId";
+
+            using (SqlCommand cmd = new SqlCommand(StrQuery, this.Connection))
+            {
+                cmd.Parameters.AddWithValue("@EventId", eventId);
+
+                // Execute the delete command
+                int rowsAffected = cmd.ExecuteNonQuery();
+
+                return rowsAffected;
+            }
         }
     }
 }

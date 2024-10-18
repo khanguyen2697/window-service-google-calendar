@@ -5,13 +5,15 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{B6E7385C-310E-41D3-B7AB-8D29A43F02F6}</ProjectGuid>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <RootNamespace>GoogleCanlendarService</RootNamespace>
     <AssemblyName>GoogleCanlendarService</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -59,6 +61,7 @@
     <Reference Include="System.Configuration.Install" />
     <Reference Include="System.Core" />
     <Reference Include="System.Management" />
+    <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -77,6 +80,7 @@
     <Compile Include="Models\CreatorDataModel.cs" />
     <Compile Include="Models\EventAttachmentModel.cs" />
     <Compile Include="Models\EventAttendeeModel.cs" />
+    <Compile Include="Models\EventDateTimeModel.cs" />
     <Compile Include="Models\EventModel.cs" />
     <Compile Include="Models\EventReminderModel.cs" />
     <Compile Include="Models\OrganizerDataModel.cs" />
@@ -93,15 +97,19 @@
     <Compile Include="Repository\CreatorDataRepository.cs" />
     <Compile Include="Repository\EventAttachmentRepository.cs" />
     <Compile Include="Repository\EventAttendeeRepository.cs" />
+    <Compile Include="Repository\EventDateTimeRepository.cs" />
     <Compile Include="Repository\EventReminderRepository.cs" />
     <Compile Include="Repository\EventRepository.cs" />
     <Compile Include="Repository\OrganizerDataRepository.cs" />
+    <Compile Include="Repository\RecurrenceRepository.cs" />
     <Compile Include="Repository\RemindersDataRepository.cs" />
     <Compile Include="Services\GoogleCalendarService.cs" />
     <Compile Include="Services\GoogleService.cs" />
+    <Compile Include="Socket\TcpClientHandler.cs" />
     <Compile Include="Utils\DBConnection.cs" />
     <Compile Include="Utils\DBUtils.cs" />
     <Compile Include="Utils\DumpData.cs" />
+    <Compile Include="Utils\CommonUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
