@@ -1,9 +1,12 @@
 ﻿using Google.Apis.Calendar.v3.Data;
 using GoogleCanlendarService.Data;
+using GoogleCanlendarService.Enum;
 using GoogleCanlendarService.Models;
 using GoogleCanlendarService.Repository;
 using GoogleCanlendarService.Services;
+using GoogleCanlendarService.Socket;
 using GoogleCanlendarService.Utils;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -20,6 +23,7 @@ namespace GoogleCanlendarService
         const string SERVICE_SOURCE = "GoogleCalendarServiceSource";
         const string SERVICE_LOG = "GoogleCalendarServiceLog";
         Timer timer = new Timer();
+        private TcpClientHandler tcpClientHandler;
 
         public InsertEventService()
         {
@@ -35,15 +39,45 @@ namespace GoogleCanlendarService
 
         protected override void OnStart(string[] args)
         {
-            eventLogInsertCalendarEvent.WriteEntry("Service is started at " + DateTime.Now);
+            WriteLog($"Service is started at {DateTime.Now}");
             timer.Elapsed += new ElapsedEventHandler(OnElapsedTime);
             timer.Interval = int.Parse(ConfigurationManager.AppSettings["TimeInterval"]); // Number in miliseconds
             timer.Enabled = true;
+            StartTcpClient();
+        }
+
+        private void StartTcpClient()
+        {
+            try
+            {
+                string tcpServerHost = ConfigurationManager.AppSettings["TCPServerHost"];
+                int tcpServerPort = int.Parse(ConfigurationManager.AppSettings["TCPServerPort"]);
+
+                tcpClientHandler = new TcpClientHandler(tcpServerHost, tcpServerPort);
+
+                _ = tcpClientHandler.ListenForMessagesAsync(OnMessageReceived);
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Error on connect to TCP Server: {ex.ToString()}");
+            }
+        }
+
+        private void OnMessageReceived(string message)
+        {
+            WriteLog($"Received: {message}");
+        }
+
+        public void SendMessageToTCPServer(TCPServerRequest request)
+        {
+            string jsonString = JsonConvert.SerializeObject(request);
+            tcpClientHandler.SendMessage(jsonString);
         }
 
         protected override void OnStop()
         {
-            eventLogInsertCalendarEvent.WriteEntry("Service is stopped at " + DateTime.Now);
+            tcpClientHandler.Close();
+            WriteLog($"Service is stopped at {DateTime.Now}");
         }
 
         private void OnElapsedTime(object source, ElapsedEventArgs e)
@@ -140,6 +174,8 @@ namespace GoogleCanlendarService
             // Insert event to databse
             eventRepo.Insert(eventObj, calendarId);
             WriteLog($"Insert new event in database (Id: {eventObj.Id})");
+            TCPServerRequest request = new TCPServerRequest(TCPServerRequestType.CREATE, eventObj.Id);
+            SendMessageToTCPServer(request);
         }
 
         private void handleEventChangedFromGoogle(EventRepository eventRepo, SqlConnection conn, EventModel eventModelOld, Event eventNew)
@@ -188,6 +224,8 @@ namespace GoogleCanlendarService
             // Update Event
             eventRepo.UpdateSimpleField(eventModelNew);
             WriteLog($"Update event in database (Id: {eventModelNew.Id})");
+            TCPServerRequest request = new TCPServerRequest(TCPServerRequestType.UPDATE, eventModelNew.Id);
+            SendMessageToTCPServer(request);
         }
 
         private void handleEventDeletedFromGoogle(EventRepository eventRepo, Event eventObj)
@@ -195,6 +233,8 @@ namespace GoogleCanlendarService
             // Delete event in databse
             eventRepo.DeleteById(eventObj.Id);
             WriteLog($"Delete event in database (Id: {eventObj.Id})");
+            TCPServerRequest request = new TCPServerRequest(TCPServerRequestType.UPDATE, eventObj.Id);
+            SendMessageToTCPServer(request);
         }
 
         private void handleEventCreatedFromDatabase(GoogleCalendarService service, EventRepository eventRepo, EventModel eventObj)

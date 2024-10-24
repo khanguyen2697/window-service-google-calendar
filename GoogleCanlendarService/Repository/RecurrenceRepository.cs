@@ -1,5 +1,4 @@
-﻿using GoogleCanlendarService.Repository;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Data.SqlClient;
 
 namespace GoogleCanlendarService.Repository

@@ -383,7 +383,7 @@ namespace GoogleCanlendarService.Data
                     UpdatedRaw = @UpdatedRaw
                 WHERE
                     Id = @Id";
-            bool isDeleted = false;
+            bool isUpdated = false;
             using (SqlCommand cmd = (this.Transaction == null)
                 ? new SqlCommand(strQuery, this.Connection)
                 : new SqlCommand(strQuery, this.Connection, this.Transaction))
@@ -393,9 +393,9 @@ namespace GoogleCanlendarService.Data
                 cmd.Parameters.AddWithValue("@Sequence", eventUpdatedFromGoogle.Sequence);
                 cmd.Parameters.AddWithValue("@UpdatedRaw", eventUpdatedFromGoogle.UpdatedRaw);
                 int rowsAffected = cmd.ExecuteNonQuery();
-                isDeleted = rowsAffected > 0;
+                isUpdated = rowsAffected > 0;
             }
-            return isDeleted;
+            return isUpdated;
         }
 
         public IList<EventModel> GetAllUpcommingEventsDiffFromDB(IList<Event> events, string calendarId)

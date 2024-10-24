@@ -71,6 +71,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Constants\TCPServerRequestType.cs" />
     <Compile Include="InsertEventService.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -85,6 +86,7 @@
     <Compile Include="Models\EventReminderModel.cs" />
     <Compile Include="Models\OrganizerDataModel.cs" />
     <Compile Include="Models\RemindersDataModel.cs" />
+    <Compile Include="Request\TCPServerRequest.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="ProjectInstaller.cs">
       <SubType>Component</SubType>
@@ -110,6 +112,7 @@
     <Compile Include="Utils\DBUtils.cs" />
     <Compile Include="Utils\DumpData.cs" />
     <Compile Include="Utils\CommonUtils.cs" />
+	<Compile Include="..\README.md" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
